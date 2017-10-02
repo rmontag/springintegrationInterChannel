@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:int="http://www.springframework.org/schema/integration"
+	xmlns:int-jms="http://www.springframework.org/schema/integration/jms"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/integration/jms http://www.springframework.org/schema/integration/jms/spring-integration-jms.xsd">
+
+	<int:channel id="orderConfirmationChannel" />
+
+	<int:channel id="orderBilledChannel" />
+
+	<int:channel id="emailOrderConfirmationChannel">
+		<int:queue />
+	</int:channel>
+
+	<int:service-activator 
+		input-channel="orderConfirmationChannel"
+		output-channel="orderBilledChannel" 
+		ref="orderManager" 
+		method="billOrder" />
+
+	<int:service-activator 
+		input-channel="orderBilledChannel"
+		output-channel="emailOrderConfirmationChannel" 
+		ref="orderManager"
+		method="updateInventory" />
+
+	<int:outbound-channel-adapter 
+		channel="emailOrderConfirmationChannel"
+		ref="orderManager" 
+		method="emailOrderConfirmation">
+		<!--
+		 Because channel is a QueueChannel, the Service 'orderManager' must explicitly
+		 poll for messages. Consuming messages are executed in a separate thread (e.g. "task-scheduler-1")
+		 different from thread sending the message to the QueueChannel! 
+		 -->
+		<int:poller fixed-delay="500" />
+	</int:outbound-channel-adapter>	
+		
+	<bean id="orderManager" class="rmontag.spring.integration.OrderManager" />
+
+	<bean id="springIntChannelExample"
+		class="rmontag.spring.integration.SpringIntegrationInterChannelExample">
+		<property name="orderConfirmationChannel" ref="orderConfirmationChannel" />
+	</bean>
+
+</beans>
